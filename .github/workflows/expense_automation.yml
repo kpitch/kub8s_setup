@@ -1,0 +1,43 @@
+name: Daily Expense Automation
+
+on:
+  schedule:
+    - cron: '0 9 * * *' # Runs at 9:00 UTC every day
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  run-automation:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      working-directory: ./expense_automation
+      run: |
+        pip install -r requirements.txt
+
+    - name: Create credentials files
+      working-directory: ./expense_automation
+      run: |
+        echo "${{ secrets.GMAIL_CREDENTIALS_JSON }}" > credentials.json
+        echo "${{ secrets.GMAIL_TOKEN_JSON }}" > token.json
+        echo "ALERT_EMAIL=${{ secrets.ALERT_EMAIL }}" > .env
+
+    - name: Run automation script
+      working-directory: ./expense_automation
+      run: python main.py
+
+    - name: Commit and push changes
+      run: |
+        git config --global user.name 'GitHub Action'
+        git config --global user.email 'action@github.com'
+        git add expense_automation/monthly_expenses.xlsx
+        git diff --quiet && git diff --staged --quiet || git commit -m "Update monthly expenses [skip ci]"
+        git push
